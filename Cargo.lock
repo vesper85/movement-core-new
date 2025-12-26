@@ -4448,6 +4448,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "aptos-transaction-simulation-session"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "aptos-api-types",
+ "aptos-crypto",
+ "aptos-resource-viewer",
+ "aptos-rest-client",
+ "aptos-transaction-simulation",
+ "aptos-types",
+ "aptos-validator-interface",
+ "aptos-vm",
+ "aptos-vm-environment",
+ "aptos-vm-logging",
+ "aptos-vm-types",
+ "bcs 0.1.4",
+ "hex",
+ "move-core-types",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "aptos-transaction-workloads-lib"
 version = "0.0.0"
 dependencies = [
@@ -12656,6 +12682,7 @@ dependencies = [
  "aptos-storage-interface",
  "aptos-telemetry",
  "aptos-temppath",
+ "aptos-transaction-simulation-session",
  "aptos-types",
  "aptos-vm",
  "aptos-vm-environment",

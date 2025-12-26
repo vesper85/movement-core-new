@@ -85,6 +85,7 @@ mod lint;
 mod manifest;
 pub mod package_hooks;
 mod show;
+mod sim;
 pub mod stored_package;
 
 const HELLO_BLOCKCHAIN_EXAMPLE: &str = include_str!(
@@ -128,6 +129,8 @@ pub enum MoveTool {
     Simulate(Simulate),
     #[clap(subcommand, hide = true)]
     Show(show::ShowTool),
+    #[clap(subcommand)]
+    Sim(sim::Sim),
     Test(TestPackage),
     VerifyPackage(VerifyPackage),
     View(ViewFunction),
@@ -165,6 +168,7 @@ impl MoveTool {
             MoveTool::RunScript(tool) => tool.execute_serialized().await,
             MoveTool::Simulate(tool) => tool.execute_serialized().await,
             MoveTool::Show(tool) => tool.execute_serialized().await,
+            MoveTool::Sim(tool) => tool.execute().await,
             MoveTool::Test(tool) => tool.execute_serialized().await,
             MoveTool::VerifyPackage(tool) => tool.execute_serialized().await,
             MoveTool::View(tool) => tool.execute_serialized().await,

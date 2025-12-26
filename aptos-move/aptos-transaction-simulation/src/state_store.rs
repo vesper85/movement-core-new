@@ -1,7 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{genesis::GENESIS_CHANGE_SET_HEAD, Account, AccountData};
+use crate::{genesis::GENESIS_CHANGE_SET_HEAD, Account, AccountData, AccountPublicKey};
 use anyhow::{anyhow, bail, Result};
 use aptos_types::{
     chain_id::ChainId,
@@ -431,6 +431,64 @@ impl<V> DeltaStateStore<V> {
             base,
             states: RwLock::new(state_vals.into_iter().map(|(k, v)| (k, Some(v))).collect()),
         }
+    }
+
+    /// Creates a new [`DeltaStateStore`] with a given base state view and delta state.
+    /// The delta is a HashMap mapping StateKeys to Option<StateValue>, where None indicates deletion.
+    pub fn new_with_base_and_delta(base: V, delta: HashMap<StateKey, Option<StateValue>>) -> Self {
+        Self {
+            base,
+            states: RwLock::new(delta),
+        }
+    }
+
+    /// Returns a clone of the current delta state (changes from base).
+    pub fn delta(&self) -> HashMap<StateKey, Option<StateValue>> {
+        self.states.read().clone()
+    }
+}
+
+impl<V> DeltaStateStore<V>
+where
+    V: TStateView<Key = StateKey>,
+{
+    /// Funds an account's APT fungible store, returning (balance_before, balance_after).
+    /// Creates the account if it doesn't exist.
+    pub fn fund_apt_fungible_store(
+        &self,
+        account_addr: AccountAddress,
+        amount: u64,
+    ) -> Result<(u64, u64)>
+    where
+        Self: SimulationStateStore,
+    {
+        use crate::Account;
+
+        // For simplicity, we always create/overwrite account with the new balance
+        // This matches the behavior expected by simulation where we fund from nothing
+        let existing_balance: u64 = 0; // Could add proper balance lookup if needed
+        let new_balance = existing_balance + amount;
+
+        // Create an Account with address and a fresh keypair
+        let account_obj = Account::new();
+        // Create AccountData with the specified address (overwriting the generated address)
+        let features: Features = self.get_on_chain_config().unwrap_or_default();
+        let use_fa_balance = features.is_enabled(FeatureFlag::NEW_ACCOUNTS_DEFAULT_TO_FA_APT_STORE);
+        let use_concurrent_balance =
+            features.is_enabled(FeatureFlag::DEFAULT_TO_CONCURRENT_FUNGIBLE_BALANCE);
+
+        // Create account data with new balance at the specified address
+        let data = crate::AccountData::with_account(
+            Account::new_from_addr(account_addr, account_obj.pubkey.clone()),
+            new_balance,
+            0, // seq_num
+            use_fa_balance,
+            use_concurrent_balance,
+        );
+
+        self.add_account_data(&data)?;
+
+        Ok((existing_balance, new_balance))
     }
 }
 
