@@ -350,10 +350,13 @@ impl CliCommand<TransactionSummary> for Run {
         // Create payload
         let payload = TransactionPayload::EntryFunction(entry_function);
 
+        // Get the current sequence number for the sender from the session state
+        let sequence_number = session.get_sequence_number(sender).unwrap_or(0);
+
         // Create raw transaction
         let raw_txn = RawTransaction::new(
             sender,
-            0, // sequence number (simulation doesn't validate)
+            sequence_number,
             payload,
             self.max_gas,
             self.gas_unit_price,

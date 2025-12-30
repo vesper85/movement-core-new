@@ -27,6 +27,7 @@ use aptos_vm_types::module_and_script_storage::AsAptosCodeStorage;
 use move_core_types::{
     identifier::Identifier,
     language_storage::{ModuleId, StructTag, TypeTag},
+    move_resource::MoveStructType,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -301,6 +302,31 @@ impl Session {
         save_delta(&self.path.join("delta.json"), &self.state_store.delta())?;
 
         Ok(())
+    }
+
+    /// Gets the current sequence number for an account from the session state.
+    ///
+    /// Returns 0 if the account doesn't exist or doesn't have an AccountResource.
+    pub fn get_sequence_number(&self, account: AccountAddress) -> Result<u64> {
+        use aptos_types::account_config::AccountResource;
+
+        // Construct the AccountResource struct tag directly
+        let account_resource_tag = StructTag {
+            address: AccountAddress::ONE,
+            module: Identifier::new("account").unwrap(),
+            name: Identifier::new("Account").unwrap(),
+            type_args: vec![],
+        };
+
+        let state_key = StateKey::resource(&account, &account_resource_tag)?;
+
+        match self.state_store.get_state_value_bytes(&state_key) {
+            Ok(Some(bytes)) => {
+                let account_resource: AccountResource = bcs::from_bytes(&bytes)?;
+                Ok(account_resource.sequence_number())
+            },
+            _ => Ok(0), // Default to 0 for new accounts
+        }
     }
 
     /// Executes a transaction and updates the session state.
