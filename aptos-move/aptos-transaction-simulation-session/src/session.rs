@@ -329,6 +329,46 @@ impl Session {
         }
     }
 
+    /// Gets the block timestamp from the forked state in microseconds.
+    ///
+    /// This reads the `0x1::timestamp::CurrentTimeMicroseconds` resource from the state.
+    /// Returns the current system time if the timestamp resource is not found.
+    pub fn get_block_timestamp_micros(&self) -> Result<u64> {
+        // Construct the CurrentTimeMicroseconds struct tag
+        // The resource is at 0x1::timestamp::CurrentTimeMicroseconds
+        let timestamp_tag = StructTag {
+            address: AccountAddress::ONE,
+            module: Identifier::new("timestamp").unwrap(),
+            name: Identifier::new("CurrentTimeMicroseconds").unwrap(),
+            type_args: vec![],
+        };
+
+        let state_key = StateKey::resource(&AccountAddress::ONE, &timestamp_tag)?;
+
+        match self.state_store.get_state_value_bytes(&state_key) {
+            Ok(Some(bytes)) => {
+                // CurrentTimeMicroseconds is a simple struct with a single u64 field
+                #[derive(serde::Deserialize)]
+                struct CurrentTimeMicroseconds {
+                    microseconds: u64,
+                }
+                let timestamp: CurrentTimeMicroseconds = bcs::from_bytes(&bytes)?;
+                Ok(timestamp.microseconds)
+            },
+            _ => {
+                // Fallback to current time if not found
+                Ok(chrono::Utc::now().timestamp_micros() as u64)
+            },
+        }
+    }
+
+    /// Gets the block timestamp from the forked state in seconds.
+    ///
+    /// This is a convenience wrapper around `get_block_timestamp_micros`.
+    pub fn get_block_timestamp_secs(&self) -> Result<u64> {
+        Ok(self.get_block_timestamp_micros()? / 1_000_000)
+    }
+
     /// Executes a transaction and updates the session state.
     ///
     /// After execution, selected parts of the transaction output get saved to a dedicated directory for inspection:

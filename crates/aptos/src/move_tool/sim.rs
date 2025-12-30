@@ -353,15 +353,22 @@ impl CliCommand<TransactionSummary> for Run {
         // Get the current sequence number for the sender from the session state
         let sequence_number = session.get_sequence_number(sender).unwrap_or(0);
 
-        // Create raw transaction
+        // Get the block timestamp from the forked state instead of current time
+        // This ensures transactions appear to execute at the same time as the forked block,
+        // preventing staleness issues with oracles like Pyth
+        let block_timestamp_secs = session
+            .get_block_timestamp_secs()
+            .unwrap_or_else(|_| chrono::Utc::now().timestamp() as u64);
+
+        // Create raw transaction with expiration 10 minutes after the block timestamp
         let raw_txn = RawTransaction::new(
             sender,
             sequence_number,
             payload,
             self.max_gas,
             self.gas_unit_price,
-            chrono::Utc::now().timestamp() as u64 + 600, // expiration 10 minutes from now
-            aptos_types::chain_id::ChainId::new(126),    // Movement mainnet chain ID
+            block_timestamp_secs + 600, // expiration 10 minutes from block time
+            aptos_types::chain_id::ChainId::new(126), // Movement mainnet chain ID
         );
 
         // Sign the transaction with the profile's private key
